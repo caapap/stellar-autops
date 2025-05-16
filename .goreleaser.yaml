@@ -80,6 +80,11 @@ dockers:
     use: buildx
     build_flag_templates:
       - "--platform=linux/amd64"
+    extra_files:
+      - config/
+      - outputs/
+      - reports/
+      - templates/
   # ARM64 架构
   - image_templates:
       - swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:v{{ .Version }}-arm64v8
@@ -89,6 +94,11 @@ dockers:
     use: buildx
     build_flag_templates:
       - "--platform=linux/arm64/v8"
+    extra_files:
+      - config/
+      - outputs/
+      - reports/
+      - templates/
 
 # 注意：以下部分需要根据实际情况调整
 # 这些部分通常用于构建 Docker 镜像的 manifest 列表
