@@ -1,12 +1,18 @@
-prometheus_url: "http://prometheus-k8s.kubesphere-monitoring-system.svc.cluster.local:9090"
+prometheus_url: "http://172.31.101.239:48877/"
+# 定义全局变量，下面会用到大模型机器ip，k8s集群ip，星云大数据主节点ip，skynet托管平台ip
+skynet_ip: "172.31.101.239"
+k8s_ip: "172.31.101.239"
+ddp_ip: "172.31.101.239"
+llm_ip: "172.31.101.239"
 
 
-project_name: "测试项目巡检报告"
+
+project_name: "星相运维平台测试项目巡检报告"
 
 
 # 定时任务：每天9点半和17半执行
 
-cron_schedule: "30 9,17 * * *"
+cron_schedule: "51 20,17 * * *"
 
 
 # 报告清理
@@ -40,48 +46,53 @@ metric_types:
     metrics:
       - name: "CPU使用率"
         description: "节点CPU使用率统计"
-        query: "100 - (avg by(instance) (irate(node_cpu_seconds_total{mode='idle'}[5m])) * 100)"
+        #query: "100 - (avg by(instance) (irate(node_cpu_seconds_total{mode='idle'}[5m])) * 100)"
+        query: "avg by(ident) (cpu_usage_active)"
         threshold: 80
         threshold_type: "greater"
         unit: "%"
         labels:
-          instance: "节点"
+          ident: "节点名称"
 
       - name: "内存使用率"
         description: "节点内存使用率统计"
-        query: "100 - ((node_memory_MemAvailable_bytes * 100) / node_memory_MemTotal_bytes)"
+        query: "avg by(ident) (mem_used_percent)"
         threshold: 85
         threshold_type: "greater"
         unit: "%"
         labels:
-          instance: "节点"
+          ident: "节点名称"
 
-      - name: "磁盘使用率"
-        description: "节点磁盘使用率统计"
-        query: >-
-          (((100 -((node_filesystem_avail_bytes * 100) / node_filesystem_size_bytes))
-          and ON (instance, device, mountpoint) node_filesystem_readonly{mountpoint!~"/run.*|/var.*|/boot.*|/tmp.*"}== 0)
-          + on(instance) group_left(node_uname_info) node_uname_info)
-          * on(instance) group_left(nodename) node_uname_info
+      - name: "根分区磁盘使用率"
+        description: "根分区磁盘使用率统计"
+        query: "avg by(ident) (disk_used_percent{path=~'/'})"
         threshold: 80
         threshold_type: "greater"
         unit: "%"
         labels:
-          instance: "节点"
-          mountpoint: "挂载点"
+          ident: "节点名称"
+          path: "挂载点"
           device: "磁盘"
-          nodename: "节点名称"
 
+      - name: "/iflytek分区磁盘使用率"
+        description: "/iflytek分区磁盘使用率统计"
+        query: "avg by(ident) (disk_used_percent{path=~'/iflytek'})"
+        threshold: 80
+        threshold_type: "greater"
+        unit: "%"
+        labels:
+          ident: "节点名称"
+          path: "挂载点"
+          device: "磁盘"
 
-      - name: "固定机器内存使用率"
-        description: "固定机器内存使用率统计"
-        query: >-
-          100 - ((node_memory_MemAvailable_bytes{instance="172.16.5.132:9100"} * 100) / node_memory_MemTotal_bytes{instance="172.16.5.132:9100"})
+      - name: "大模型机器内存使用率"
+        description: "大模型机器内存使用率统计"
+        query: "avg by(ident) (mem_used_percent{ident=~'$llm_ip'})"
         threshold: 16.84
         threshold_type: "greater"
         unit: "%"
         labels:
-          instance: "节点"
+          ident: "节点名称"
 
 
   # - type: "PaaS平台巡检"
@@ -100,32 +111,12 @@ metric_types:
   #         owner: "负责人"
   #         instance: "节点"
 
-  - type: "kubernetes集群监控状态"
-    metrics:
-      - name: "K8s集群巡检"
-        description: "K8s集群巡检"
-        query: "k8s_cluster_auto_check"
-        threshold: 1
-        threshold_type: "equal"
-        unit: ""
-        labels:
-          component: "服务名称"
-          hostname: "主机名称"
-          owner: "负责人"
 
-      - name: "自定义监控脚本执行情况"
-        description: "script-exporter监控脚本执行情况"
-        query: "script_success"
-        threshold: 1
-        threshold_type: "equal"
-        unit: ""
-        labels:
-          instance: "宿主机器"
-          script: "脚本名称"
 
       - name: "Pod运行状态"
         description: "集群Pod运行状态统计"
         query: "sum by (namespace, pod) (kube_pod_status_phase{phase='Running',namespace='kube-system'})"
+        prometheus_url: "http://172.31.101.239:13324/"
         threshold: 1
         threshold_type: "equal"
         unit: ""
@@ -136,6 +127,7 @@ metric_types:
       - name: "节点就绪状态"
         description: "K8s节点就绪状态检查"
         query: "kube_node_status_condition{condition='Ready',status!='true'}"
+        prometheus_url: "http://172.31.101.239:13324/"
         threshold: 0
         threshold_type: "equal"
         unit: ""
@@ -147,6 +139,7 @@ metric_types:
         description: "持久化存储使用率"
         query: >-
           100 * (1 - kubelet_volume_stats_available_bytes / kubelet_volume_stats_capacity_bytes)
+        prometheus_url: "http://172.31.101.239:13324/"
         threshold: 90
         threshold_type: "greater"
         unit: "%"

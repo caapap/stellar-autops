@@ -4,7 +4,7 @@ name: build docker image
 on:
   push:
     branches:
-      - main
+      - stellar 
   # Allows you to run this workflow manually from the Actions tab
   # 可以手动触发
   workflow_dispatch:
@@ -37,11 +37,12 @@ jobs:
       - name: Available platforms
         run: echo ${{ steps.buildx.outputs.platforms }}
 
-      - name: Login to DockerHub
-        uses: docker/login-action@v1
+      - name: Login Huawei-Cloud SWR
+        uses: docker/login-action@v2
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: swr.cn-east-3.myhuaweicloud.com
+          username: ${{ secrets.HUAWEI_SWR_USERNAME }}
+          password: ${{ secrets.HUAWEI_SWR_PASSWORD }}
 
       - name: Build and push
         uses: docker/build-push-action@v2
@@ -54,5 +55,5 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           # 给清单打上多个标签
           tags: |
-            kubehan/promai:${{ github.ref_name }}-${{ steps.date.outputs.today }}
-            kubehan/promai:latest
+            swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:${{ github.ref_name }}-${{ steps.date.outputs.today }}
+            swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:latest
