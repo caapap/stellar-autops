@@ -10,8 +10,8 @@ import (
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
 
-	"PromAI/pkg/config"
-	"PromAI/pkg/report"
+	"stellar-autops/pkg/config"
+	"stellar-autops/pkg/report"
 )
 
 // Collector 处理指标收集

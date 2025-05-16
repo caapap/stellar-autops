@@ -1,8 +1,12 @@
-FROM docker.io/library/golang:1.23.4-alpine3.20 AS builder
+FROM docker.io/library/golang:1.22.3-alpine3.20 AS builder
 
 WORKDIR /build
 COPY . .
-RUN go env -w GO111MODULE=on &&  go mod download && go build && ls -la /build
+RUN go env -w GO111MODULE=on && \
+    go mod tidy && \
+    go mod download && \
+    go build -mod=mod -o stellar-autops . && \
+    ls -la /build
 
 FROM docker.io/alpine:3.21.0
 # 添加标识信息
