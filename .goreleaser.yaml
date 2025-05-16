@@ -48,10 +48,10 @@ archives:
   - id: stellar-autops
     name_template: "stellar-autops-v{{ .Version }}-{{ .Os }}-{{ .Arch }}"
     wrap_in_directory: false
-    format: tar.gz
-    format_overrides:
-      - goos: windows
-        format: zip
+    replacements:
+      windows: zip
+      linux: tar.gz
+      darwin: tar.gz
     files:
       - README.md
       - config/

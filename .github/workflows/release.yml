@@ -48,6 +48,6 @@ jobs:
         if: success() && startsWith(github.ref, 'refs/tags/v')
         run: |
           # 推送 AMD64 镜像
-          docker push swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:v${{ github.ref_name }}-amd64
+          docker push swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:${{ github.ref_name }}-amd64
           # 推送 ARM64 镜像
-          docker push swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:v${{ github.ref_name }}-arm64v8 
+          docker push swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:${{ github.ref_name }}-arm64v8 
