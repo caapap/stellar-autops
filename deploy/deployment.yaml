@@ -2,8 +2,8 @@ apiVersion: v1
 kind: Namespace
 metadata:
   labels:
-    kubernetes.io/metadata.name: promai
-  name: promai
+    kubernetes.io/metadata.name: stellar-autops
+  name: stellar-autops
 
 ---
 
@@ -11,7 +11,7 @@ kind: ConfigMap
 apiVersion: v1
 metadata:
   name: config
-  namespace: promai
+  namespace: kxdigit-monitoring 
   annotations:
     kubesphere.io/creator: admin
 data:
@@ -179,19 +179,19 @@ data:
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: promai
-  namespace: promai
+  name: stellar-autops
+  namespace: kxdigit-monitoring
   labels:
-    app: promai
+    app: stellar-autops
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: promai
+      app: stellar-autops
   template:
     metadata:
       labels:
-        app: promai
+        app: stellar-autops
     spec:
       volumes:
         - name: volume-kv418v
@@ -203,8 +203,8 @@ spec:
             path: /etc/localtime
             type: ''
       containers:
-        - name: promai
-          image: 'kubehan/promai:latest'
+        - name: stellar-autops
+          image: 'caapap/stellar-autops:latest'
           ports:
             - name: tcp-8091
               containerPort: 8091
@@ -266,10 +266,10 @@ spec:
 kind: Service
 apiVersion: v1
 metadata:
-  name: promai
-  namespace: promai
+  name: stellar-autops
+  namespace: kxdigit-monitoring
   labels:
-    app: promai
+    app: stellar-autops
 spec:
   ports:
     - name: http-80
@@ -277,7 +277,7 @@ spec:
       port: 80
       targetPort: 8091
   selector:
-    app: promai
+    app: stellar-autops
   type: NodePort
   sessionAffinity: None
   ipFamilies:

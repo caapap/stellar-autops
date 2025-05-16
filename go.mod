@@ -1,4 +1,4 @@
-module PromAI
+module stellar-autops
 
 go 1.22.3
 

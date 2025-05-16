@@ -3,8 +3,8 @@ name: build docker image
 # Controls when the action will run.
 on:
   push:
-    branches:
-      - stellar 
+    tags: # 当 v* 标签被推送时触发
+      - 'v*'
   # Allows you to run this workflow manually from the Actions tab
   # 可以手动触发
   workflow_dispatch:
@@ -21,31 +21,50 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4 # 更新版本
 
-      - name: Get current date
-        id: date
-        run: echo "::set-output name=today::$(date +'%Y-%m-%d_%H-%M')"
+      - name: Determine Docker tags
+        id: docker_tags
+        shell: bash
+        run: |
+          IMAGE_BASE="swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops"
+          TAG_LIST=""
+          
+          # 检查触发事件是否为 v* 标签
+          if [[ "${{ github.ref_type }}" == "tag" && "${{ github.ref_name }}" == v* ]]; then
+            # 标签推送，例如 v0.0.5
+            VERSION="${{ github.ref_name }}"
+            TAG_LIST="${IMAGE_BASE}:${VERSION}\n"
+            TAG_LIST="${TAG_LIST}${IMAGE_BASE}:latest"
+          else
+            # 手动触发或其他情况，只使用 latest 标签
+            TAG_LIST="${IMAGE_BASE}:latest"
+          fi
+          
+          # 将 TAG_LIST 输出给后续步骤
+          echo "tags<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$TAG_LIST" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@v3 # 更新版本
 
       - name: Set up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v3 # 更新版本
 
       - name: Available platforms
         run: echo ${{ steps.buildx.outputs.platforms }}
 
       - name: Login Huawei-Cloud SWR
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3 # 更新版本
         with:
           registry: swr.cn-east-3.myhuaweicloud.com
           username: ${{ secrets.HUAWEI_SWR_USERNAME }}
           password: ${{ secrets.HUAWEI_SWR_PASSWORD }}
 
       - name: Build and push
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v5 # 更新版本
         with:
           context: .
           file: ./Dockerfile
@@ -53,7 +72,5 @@ jobs:
           platforms: linux/amd64,linux/arm64/v8
           # 镜像推送时间
           push: ${{ github.event_name != 'pull_request' }}
-          # 给清单打上多个标签
-          tags: |
-            swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:${{ github.ref_name }}-${{ steps.date.outputs.today }}
-            swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:latest
+          # 使用上一步生成的标签
+          tags: ${{ steps.docker_tags.outputs.tags }}

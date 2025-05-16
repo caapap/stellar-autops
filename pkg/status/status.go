@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	"PromAI/pkg/config"
-	"PromAI/pkg/metrics"
+	"stellar-autops/pkg/config"
+	"stellar-autops/pkg/metrics"
 
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"

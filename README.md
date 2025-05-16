@@ -6,6 +6,29 @@
 
 这是一个基于 Prometheus 的监控报告自动生成工具，可以自动收集、分析指标数据并生成可视化的 HTML 报告。该工具旨在简化监控数据的收集和展示过程，帮助运维人员快速了解系统状态。
 
+## 项目结构
+
+从您提供的项目根目录信息来看，这是一个 Go 语言项目。以下是主要文件和目录的分析：
+
+*   **`main.go`**: 这是 Go 项目的主入口文件。
+*   **`go.mod` 和 `go.sum`**: 这些文件用于管理项目的依赖。
+*   **`Dockerfile`**: 这表明项目可以使用 Docker 进行容器化部署。
+*   **`config/`**: 这个目录很可能包含项目的配置文件，比如您之前打开的 `config.yaml`。
+*   **`pkg/`**: 按照 Go 项目的惯例，这个目录通常包含项目的主要代码包。
+*   **`templates/`**: 这个目录可能存放用于生成报告或其他输出的模板文件。
+*   **`reports/`**: 可能用于存放生成的报告。
+*   **`outputs/`**: 可能用于存放其他输出文件。
+*   **`deploy/`**: 可能包含部署相关的脚本或配置文件。
+*   **`.git/`**: 这是 Git 版本控制系统的目录。
+*   **`.github/`**: 通常包含 GitHub Actions 的工作流配置文件或其他 GitHub 相关配置。
+*   **`.idea/`**: 这是 JetBrains IDE (如 GoLand) 的项目配置目录。
+*   **`images/`**: 可能包含项目相关的图片资源。
+*   **`README.md`**: 项目的说明文档。
+*   **`stellar-autops`**: 这可能是一个编译后的可执行文件。
+*   **`.DS_Store`**: 这是 macOS 系统自动生成的文件夹属性文件。
+
+总体来看，这是一个结构比较清晰的 Go 项目，包含了配置、源码、模板、部署、文档和版本控制等常见组成部分。
+
 ## 报告样式
 ### 获取报告
 http://localhost:8091/getreport
@@ -94,8 +117,8 @@ equal: 表示值必须等于阈值才被视为 "normal" 状态。
 1. 克隆仓库：
 
    ```bash
-   git clone https://github.com/kubehan/PromAI.git
-   cd PromAI
+   git clone https://github.com/caapap/stellar-autops.git
+   cd stellar-autops
    ```
 2. 安装依赖：
 
@@ -111,8 +134,8 @@ equal: 表示值必须等于阈值才被视为 "normal" 状态。
 4. 构建并运行：
 
    ```bash
-   go build -o PromAI main.go
-   ./PromAI -config config/config.yaml
+   go build -o stellar-autops main.go
+   ./stellar-autops -config config/config.yaml
    ```
 5. 查看报告：
    生成的报告将保存在 `reports` 目录下。
@@ -120,7 +143,7 @@ equal: 表示值必须等于阈值才被视为 "normal" 状态。
 ### Docker 部署
 
 ```bash
-docker run -d --name PromAI -p 8091:8091 kubehan/promai:latest
+docker run -d --name stellar-autops -p 8091:8091 caapap/stellar-autops:latest
 ```
 
 ### Kubernetes 部署
@@ -138,8 +161,8 @@ kubectl apply -f deploy/deployment.yaml
 3. 运行程序 默认运行在8091端口，通过访问http://localhost:8091/getreport 查看报告
 
 ```bash
-go build -o PromAI main.go
-./PromAI -config config/config.yaml
+go build -o stellar-autops main.go
+./stellar-autops -config config/config.yaml
 ```
 
 # Prometheus Automated Inspection 未来新功能规划列表
@@ -160,52 +183,6 @@ go build -o PromAI main.go
 14. 用户反馈和建议收集
 15. xxx
 
-## 贡献
-
-欢迎任何形式的贡献！请提交问题、建议或拉取请求。
-
-## 贡献者
-
-<!-- readme: collaborators,contributors -start -->
-<table>
-<tr>
-    <td align="center">
-        <a href="https://github.com/kubehan">
-            <img src="https://avatars.githubusercontent.com/u/69997301?v=4" width="100;" alt="kubehan"/>
-            <br />
-            <sub><b>Kubehan</b></sub>
-        </a>
-    </td>
-    <td align="center">
-        <a href="https://github.com/junlintianxiazhifulinzhongguo">
-            <img src="https://avatars.githubusercontent.com/u/18591729?v=4" width="100;" alt="junlintianxiazhifulinzhongguo"/>
-            <br />
-            <sub><b>Junlintianxiazhifulinzhongguo</b></sub>
-        </a>
-    </td>
-    <td align="center">
-        <a href="https://github.com/liushiju">
-            <img src="https://avatars.githubusercontent.com/u/34912508?v=4" width="100;" alt="liushiju"/>
-            <br />
-            <sub><b>Shiju Liu</b></sub>
-        </a>
-    </td>
-    <td align="center">
-        <a href="https://github.com/wevsmy">
-            <img src="https://avatars.githubusercontent.com/u/26675374?v=4" width="100;" alt="wevsmy"/>
-            <br />
-            <sub><b>Wilson_wu</b></sub>
-        </a>
-    </td>
-    <td align="center">
-        <a href="https://github.com/liaofan-0710">
-            <img src="https://avatars.githubusercontent.com/u/59794905?v=4" width="100;" alt="liaofan-0710"/>
-            <br />
-            <sub><b>了凡</b></sub>
-        </a>
-    </td></tr>
-</table>
-<!-- readme: collaborators,contributors -end -->
 
 ## 许可证
 

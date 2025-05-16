@@ -1,6 +1,6 @@
 package config
 
-import "PromAI/pkg/notify"
+import "stellar-autops/pkg/notify"
 
 type Config struct {
 	PrometheusURL string       `yaml:"prometheus_url"`

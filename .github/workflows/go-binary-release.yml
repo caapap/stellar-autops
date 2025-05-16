@@ -1,26 +1,42 @@
 name: build-go-binary
 
 on:
-  release:
-    types: [created, published] # 表示在创建新的 Release 时触发
+  push:
+    tags:
+      - 'v*' # 当 v* 标签被推送时触发
+    branches:
+      - 'stellar' # 当 stellar 分支被推送时触发
 
 jobs:
-  build-go-binary:
+  build-and-release:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        goos: [linux, windows, darwin] # 需要打包的系统
-        goarch: [amd64, arm64] # 需要打包的架构
-        exclude: # 排除某些平台和架构
-          - goarch: arm64
-            goos: windows
+        goos: [linux, windows, darwin]
+        goarch: [amd64, arm64]
+        exclude:
+          - goos: windows
+            goarch: arm64
     steps:
-      - uses: actions/checkout@v3
-      - uses: wangyoucao577/go-release-action@v1.30
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Build and Release with go-release-action
+        uses: wangyoucao577/go-release-action@v1.30 # 或者更新到最新的兼容版本
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }} # 一个默认的变量，用来实现往 Release 中添加文件
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           goos: ${{ matrix.goos }}
           goarch: ${{ matrix.goarch }}
-          goversion: 1.23 # 可以指定编译使用的 Golang 版本
-          binary_name: "PromAI" # 可以指定二进制文件的名称
-          extra_files: README.md config outputs reports templates # 需要包含的额外文件
+          goversion: "1.23" # 请确认为您项目实际使用的 Go 版本
+          binary_name: "stellar-autops"
+          extra_files: README.md config outputs reports templates
+          # 当 github.ref 是一个标签时，此 action 会自动创建 Release
+          # release_name: "Release ${{ github.ref_name }}" # 可选，go-release-action 会自动生成
+          # asset_name: "stellar-autops-${{ matrix.goos }}-${{ matrix.goarch }}" # 可选, go-release-action 会自动生成
+          # 如果需要在非 tag 推送时不执行 release 操作，该 action 通常会自动处理。
+          # 如果需要更精细控制，可以添加 `release_draft: ${{ !startsWith(github.ref, 'refs/tags/v') }}`
+          # 或者 `prerelease: ${{ !startsWith(github.ref, 'refs/tags/v') }}` 
+          # 但通常此 action 在非 tag push 时不会创建 release。 
+          # 最新的版本 (如 v1.40+) 会明确在非 tag 推送时跳过 release 步骤。
+          # 确保使用较新版本以获得此行为，或者检查其文档。
+          # 对于 v1.30，其行为是如果 github.ref 不是 tag，则不会执行 release 相关操作。
