@@ -48,10 +48,7 @@ archives:
   - id: stellar-autops
     name_template: "stellar-autops-v{{ .Version }}-{{ .Os }}-{{ .Arch }}"
     wrap_in_directory: false
-    replacements:
-      windows: zip
-      linux: tar.gz
-      darwin: tar.gz
+    format: "{{ if eq .Os \"windows\" }}zip{{ else }}tar.gz{{ end }}"
     files:
       - README.md
       - config/
