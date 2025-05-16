@@ -27,7 +27,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           goos: ${{ matrix.goos }}
           goarch: ${{ matrix.goarch }}
-          goversion: "1.23" # 请确认为您项目实际使用的 Go 版本
+          goversion: "1.23.3" # 请确认为您项目实际使用的 Go 版本
           binary_name: "stellar-autops"
           extra_files: README.md config outputs reports templates
           # 当 github.ref 是一个标签时，此 action 会自动创建 Release
