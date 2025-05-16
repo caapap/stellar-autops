@@ -1,19 +1,8 @@
-FROM docker.io/library/golang:1.22.3-alpine3.20 AS builder
+FROM docker.io/library/golang:1.23.4-alpine3.20 AS builder
 
 WORKDIR /build
-# 复制go.mod和go.sum文件
-COPY go.mod go.sum ./
-# 下载依赖
-RUN go mod download
-# 复制所有源代码和目录
 COPY . .
-# 检查Go文件是否存在
-RUN ls -la && \
-    ls -la pkg/ && \
-    go env -w GO111MODULE=on && \
-    go mod tidy && \
-    go build -mod=mod -o stellar-autops . && \
-    ls -la /build
+RUN go env -w GO111MODULE=on &&  go mod download && go build && ls -la /build
 
 FROM docker.io/alpine:3.21.0
 # 添加标识信息

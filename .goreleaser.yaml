@@ -70,47 +70,9 @@ release:
 
 dockers:
   - image_templates:
-      - swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:{{ .Version }}-amd64
-    goos: linux
-    goarch: amd64
+      - swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:{{ .Version }}
+      - swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:latest
     dockerfile: Dockerfile
     use: buildx
     build_flag_templates:
-      - "--platform=linux/amd64"
-    extra_files:
-      - go.mod
-      - go.sum
-      - main.go
-      - pkg/**/*
-      - config/**/*
-      - outputs/**/*
-      - reports/**/*
-      - templates/**/*
-  - image_templates:
-      - swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:{{ .Version }}-arm64v8
-    goos: linux
-    goarch: arm64
-    dockerfile: Dockerfile
-    use: buildx
-    build_flag_templates:
-      - "--platform=linux/arm64/v8"
-    extra_files:
-      - go.mod
-      - go.sum
-      - main.go
-      - pkg/**/*
-      - config/**/*
-      - outputs/**/*
-      - reports/**/*
-      - templates/**/*
-
-docker_manifests:
-  - name_template: swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:{{ .Version }}
-    image_templates:
-      - swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:{{ .Version }}-amd64
-      - swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:{{ .Version }}-arm64v8
-
-  - name_template: swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:latest
-    image_templates:
-      - swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:{{ .Version }}-amd64
-      - swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:{{ .Version }}-arm64v8 
+      - "--platform=linux/amd64,linux/arm64/v8" 
