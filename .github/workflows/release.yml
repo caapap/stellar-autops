@@ -6,7 +6,7 @@ on:
       - 'v*'
   workflow_dispatch:
 env:
-  GO_VERSION: 1.22.3
+  GO_VERSION: 1.23.4
 
 jobs:
   goreleaser:
@@ -35,6 +35,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Extract Version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v4
         with:
@@ -42,4 +46,37 @@ jobs:
           version: latest
           args: release --clean
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      # 创建并推送Docker多架构清单
+      - name: Create and Push Docker Manifest
+        if: success() && startsWith(github.ref, 'refs/tags/v')
+        run: |
+          # 前期配置，允许Docker CLI操作多架构清单
+          mkdir -p $HOME/.docker
+          echo '{"experimental": "enabled"}' > $HOME/.docker/config.json
+          # 获取版本号（保留v前缀）
+          VERSION=${GITHUB_REF#refs/tags/}
+          # 创建版本化的多架构清单（使用完整tag，包含v前缀）
+          docker manifest create swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:${VERSION} \
+            swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:${VERSION}-amd64 \
+            swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:${VERSION}-arm64v8
+          # 注解指定架构信息
+          docker manifest annotate swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:${VERSION} \
+            swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:${VERSION}-amd64 --os linux --arch amd64
+          docker manifest annotate swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:${VERSION} \
+            swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:${VERSION}-arm64v8 --os linux --arch arm64 --variant v8
+          # 推送多架构清单
+          docker manifest push swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:${VERSION}
+          
+          # 再次为latest标签创建多架构清单
+          docker manifest create swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:latest \
+            swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:${VERSION}-amd64 \
+            swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:${VERSION}-arm64v8
+          # 注解指定架构信息
+          docker manifest annotate swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:latest \
+            swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:${VERSION}-amd64 --os linux --arch amd64
+          docker manifest annotate swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:latest \
+            swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:${VERSION}-arm64v8 --os linux --arch arm64 --variant v8
+          # 推送latest标签的多架构清单
+          docker manifest push swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:latest 

@@ -6,6 +6,8 @@ before:
     - go mod tidy
     # 确认源码目录
     - ls -la
+    # 创建必要的目录
+    - mkdir -p config outputs reports templates
 
 snapshot:
 
@@ -54,10 +56,11 @@ archives:
           - zip
     files:
       - README.md
-      - config/**/*
-      - outputs/**/*
-      - reports/**/*
-      - templates/**/*
+      - stellar-autops
+      - config/
+      - outputs/
+      - reports/
+      - templates/
 
 release:
   github:
@@ -69,10 +72,29 @@ release:
   mode: replace
 
 dockers:
+  # AMD64 架构
   - image_templates:
-      - swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:{{ .Version }}
-      - swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:latest
+      - swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:v{{ .Version }}-amd64
+    goos: linux
+    goarch: amd64
     dockerfile: Dockerfile
     use: buildx
     build_flag_templates:
-      - "--platform=linux/amd64,linux/arm64/v8" 
+      - "--platform=linux/amd64"
+  # ARM64 架构
+  - image_templates:
+      - swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:v{{ .Version }}-arm64v8
+    goos: linux
+    goarch: arm64
+    dockerfile: Dockerfile
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/arm64/v8"
+
+# 注意：以下部分需要根据实际情况调整
+# 这些部分通常用于构建 Docker 镜像的 manifest 列表
+# 如果你不需要构建 Docker 镜像的 manifest 列表，可以忽略这部分
+# 如果你需要构建 Docker 镜像的 manifest 列表，请确保在 GoReleaser 执行完成后通过其他方式处理
+# 例如，使用 Docker 命令行工具手动处理
+# 或者使用其他脚本自动处理
+# 或者使用其他 CI/CD 工具自动处理 
