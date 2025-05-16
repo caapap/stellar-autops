@@ -77,7 +77,6 @@ dockers:
     goos: linux
     goarch: amd64
     dockerfile: Dockerfile
-    context: .
     use: buildx
     build_flag_templates:
       - "--platform=linux/amd64"
@@ -87,7 +86,6 @@ dockers:
     goos: linux
     goarch: arm64
     dockerfile: Dockerfile
-    context: .
     use: buildx
     build_flag_templates:
       - "--platform=linux/arm64/v8"
