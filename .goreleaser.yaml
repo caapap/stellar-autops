@@ -4,6 +4,8 @@ before:
   hooks:
     # 构建前清理依赖
     - go mod tidy
+    # 确认源码目录
+    - ls -la
 
 snapshot:
 
@@ -42,12 +44,14 @@ builds:
 
 archives:
   - id: stellar-autops
-    format_overrides:
-      - goos: windows
-        format: zip
-    format: tar.gz
     name_template: "stellar-autops-{{ .Version }}-{{ .Os }}-{{ .Arch }}"
     wrap_in_directory: false
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
     files:
       - README.md
       - config/**/*
@@ -76,11 +80,12 @@ dockers:
     extra_files:
       - go.mod
       - go.sum
-      - config/
-      - outputs/
-      - reports/
-      - templates/
-      - pkg/
+      - main.go
+      - pkg/**/*
+      - config/**/*
+      - outputs/**/*
+      - reports/**/*
+      - templates/**/*
   - image_templates:
       - swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:{{ .Version }}-arm64v8
     goos: linux
@@ -92,11 +97,12 @@ dockers:
     extra_files:
       - go.mod
       - go.sum
-      - config/
-      - outputs/
-      - reports/
-      - templates/
-      - pkg/
+      - main.go
+      - pkg/**/*
+      - config/**/*
+      - outputs/**/*
+      - reports/**/*
+      - templates/**/*
 
 docker_manifests:
   - name_template: swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:{{ .Version }}

@@ -5,9 +5,12 @@ WORKDIR /build
 COPY go.mod go.sum ./
 # 下载依赖
 RUN go mod download
-# 复制源代码
+# 复制所有源代码和目录
 COPY . .
-RUN go env -w GO111MODULE=on && \
+# 检查Go文件是否存在
+RUN ls -la && \
+    ls -la pkg/ && \
+    go env -w GO111MODULE=on && \
     go mod tidy && \
     go build -mod=mod -o stellar-autops . && \
     ls -la /build
