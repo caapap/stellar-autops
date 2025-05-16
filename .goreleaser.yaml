@@ -1,10 +1,12 @@
+version: 2
+
 before:
   hooks:
     # 构建前清理依赖
     - go mod tidy
 
 snapshot:
-  name_template: '{{ .Tag }}'
+
 checksum:
   name_template: 'checksums.txt'
 changelog:
@@ -40,12 +42,10 @@ builds:
 
 archives:
   - id: stellar-autops
-    builds:
-      - stellar-autops
-    format: tar.gz
     format_overrides:
       - goos: windows
         format: zip
+    format: tar.gz
     name_template: "stellar-autops-{{ .Version }}-{{ .Os }}-{{ .Arch }}"
     wrap_in_directory: false
     files:
@@ -73,6 +73,14 @@ dockers:
     use: buildx
     build_flag_templates:
       - "--platform=linux/amd64"
+    extra_files:
+      - go.mod
+      - go.sum
+      - config/
+      - outputs/
+      - reports/
+      - templates/
+      - pkg/
   - image_templates:
       - swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:{{ .Version }}-arm64v8
     goos: linux
@@ -81,6 +89,14 @@ dockers:
     use: buildx
     build_flag_templates:
       - "--platform=linux/arm64/v8"
+    extra_files:
+      - go.mod
+      - go.sum
+      - config/
+      - outputs/
+      - reports/
+      - templates/
+      - pkg/
 
 docker_manifests:
   - name_template: swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:{{ .Version }}

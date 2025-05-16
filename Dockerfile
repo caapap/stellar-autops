@@ -1,10 +1,14 @@
 FROM docker.io/library/golang:1.22.3-alpine3.20 AS builder
 
 WORKDIR /build
+# 复制go.mod和go.sum文件
+COPY go.mod go.sum ./
+# 下载依赖
+RUN go mod download
+# 复制源代码
 COPY . .
 RUN go env -w GO111MODULE=on && \
     go mod tidy && \
-    go mod download && \
     go build -mod=mod -o stellar-autops . && \
     ls -la /build
 
