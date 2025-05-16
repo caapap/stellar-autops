@@ -1,4 +1,4 @@
-version: 1
+version: 2
 
 before:
   hooks:
@@ -48,12 +48,10 @@ archives:
   - id: stellar-autops
     name_template: "stellar-autops-v{{ .Version }}-{{ .Os }}-{{ .Arch }}"
     wrap_in_directory: false
-    formats:
-      - tar.gz
+    format: tar.gz
     format_overrides:
       - goos: windows
-        formats:
-          - zip
+        format: zip
     files:
       - README.md
       - config/
