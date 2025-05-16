@@ -1,0 +1,94 @@
+before:
+  hooks:
+    # 构建前清理依赖
+    - go mod tidy
+
+snapshot:
+  name_template: '{{ .Tag }}'
+checksum:
+  name_template: 'checksums.txt'
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - Merge pull request
+      - Merge branch
+
+builds:
+  - id: stellar-autops
+    main: .
+    binary: stellar-autops
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - id: stellar-autops
+    builds:
+      - stellar-autops
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    name_template: "stellar-autops-{{ .Version }}-{{ .Os }}-{{ .Arch }}"
+    wrap_in_directory: false
+    files:
+      - README.md
+      - config/**/*
+      - outputs/**/*
+      - reports/**/*
+      - templates/**/*
+
+release:
+  github:
+    owner: caapap
+    name: stellar-autops
+  name_template: "v{{ .Version }}"
+  draft: false
+  replace_existing_artifacts: true
+  mode: replace
+
+dockers:
+  - image_templates:
+      - swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:{{ .Version }}-amd64
+    goos: linux
+    goarch: amd64
+    dockerfile: Dockerfile
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/amd64"
+  - image_templates:
+      - swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:{{ .Version }}-arm64v8
+    goos: linux
+    goarch: arm64
+    dockerfile: Dockerfile
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/arm64/v8"
+
+docker_manifests:
+  - name_template: swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:{{ .Version }}
+    image_templates:
+      - swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:{{ .Version }}-amd64
+      - swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:{{ .Version }}-arm64v8
+
+  - name_template: swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:latest
+    image_templates:
+      - swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:{{ .Version }}-amd64
+      - swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:{{ .Version }}-arm64v8 
