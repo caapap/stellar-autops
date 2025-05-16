@@ -56,7 +56,7 @@ jobs:
           mkdir -p $HOME/.docker
           echo '{"experimental": "enabled"}' > $HOME/.docker/config.json
           # 获取版本号（保留v前缀）
-          VERSION=${GITHUB_REF#refs/tags/}
+          VERSION=${GITHUB_REF#refs/tags/v}
           # 创建版本化的多架构清单（使用完整tag，包含v前缀）
           docker manifest create swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:${VERSION} \
             swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:${VERSION}-amd64 \

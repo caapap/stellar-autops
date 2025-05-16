@@ -46,7 +46,7 @@ builds:
 
 archives:
   - id: stellar-autops
-    name_template: "stellar-autops-{{ .Version }}-{{ .Os }}-{{ .Arch }}"
+    name_template: "stellar-autops-v{{ .Version }}-{{ .Os }}-{{ .Arch }}"
     wrap_in_directory: false
     formats:
       - tar.gz
@@ -56,7 +56,6 @@ archives:
           - zip
     files:
       - README.md
-      - stellar-autops
       - config/
       - outputs/
       - reports/
@@ -74,7 +73,7 @@ release:
 dockers:
   # AMD64 架构
   - image_templates:
-      - swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:v{{ .Version }}-amd64
+      - swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:{{ .Version }}-amd64
     goos: linux
     goarch: amd64
     dockerfile: Dockerfile
@@ -83,7 +82,7 @@ dockers:
       - "--platform=linux/amd64"
   # ARM64 架构
   - image_templates:
-      - swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:v{{ .Version }}-arm64v8
+      - swr.cn-east-3.myhuaweicloud.com/caapap/stellar-autops:{{ .Version }}-arm64v8
     goos: linux
     goarch: arm64
     dockerfile: Dockerfile
