@@ -4,8 +4,6 @@ on:
   push:
     tags:
       - 'v*' # 当 v* 标签被推送时触发
-    branches:
-      - 'stellar' # 当 stellar 分支被推送时触发
 
 jobs:
   build-and-release:
