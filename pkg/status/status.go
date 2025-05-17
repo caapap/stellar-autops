@@ -2,11 +2,13 @@ package status
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
 	"stellar-autops/pkg/config"
 	"stellar-autops/pkg/metrics"
+	"stellar-autops/pkg/prometheus"
 
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
@@ -31,6 +33,7 @@ type MetricConfig struct {
 	Unit          string            `yaml:"unit"`
 	Labels        map[string]string `yaml:"labels"`
 	ThresholdType string            `yaml:"threshold_type"`
+	PrometheusURL string            `yaml:"prometheus_url"`
 }
 
 type StatusSummary struct {
@@ -53,6 +56,32 @@ type StatusData struct {
 	Summary StatusSummary
 	Metrics []MetricStatus
 	Dates   []string
+}
+
+// clientCache 缓存不同URL的客户端
+var clientCache = make(map[string]metrics.PrometheusAPI)
+
+// getClientForMetric 根据指标配置获取合适的Prometheus客户端
+func getClientForMetric(defaultClient metrics.PrometheusAPI, metric config.MetricConfig) (metrics.PrometheusAPI, error) {
+	// 如果指标没有指定Prometheus URL，使用默认客户端
+	if metric.PrometheusURL == "" {
+		return defaultClient, nil
+	}
+
+	// 如果已经有此URL的客户端缓存，直接使用
+	if client, ok := clientCache[metric.PrometheusURL]; ok {
+		return client, nil
+	}
+
+	// 否则，创建新的客户端
+	promClient, err := prometheus.NewClient(metric.PrometheusURL)
+	if err != nil {
+		return nil, fmt.Errorf("为指标 %s 创建Prometheus客户端失败: %w", metric.Name, err)
+	}
+
+	// 缓存客户端
+	clientCache[metric.PrometheusURL] = promClient.API
+	return promClient.API, nil
 }
 
 func GenerateStatusData(days int) (*StatusData, error) {
@@ -105,9 +134,21 @@ func CollectMetricStatus(client metrics.PrometheusAPI, config *config.Config) (*
 				ThresholdType: metric.ThresholdType,
 			}
 
+			// 获取或创建此指标的Prometheus客户端
+			metricClient, err := getClientForMetric(client, metric)
+			if err != nil {
+				log.Printf("警告: 获取指标 %s 的Prometheus客户端失败: %v", metric.Name, err)
+				for _, date := range data.Dates {
+					metricStatus.DailyStatus[date] = "abnormal"
+					data.Summary.Abnormal++
+				}
+				data.Metrics = append(data.Metrics, metricStatus)
+				continue
+			}
+
 			// 查询每天的状态
 			for _, date := range data.Dates {
-				status, err := queryMetricStatus(client, metric, date)
+				status, err := queryMetricStatus(metricClient, metric, date)
 				if err != nil {
 					log.Printf("查询指标 [%s] 在 %s 的状态失败: %v", metric.Name, date, err)
 					metricStatus.DailyStatus[date] = "abnormal"

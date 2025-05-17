@@ -8,6 +8,7 @@ import (
 	"math"
 	"os"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -43,11 +44,35 @@ type MetricGroup struct {
 	MetricsByName map[string][]MetricData
 	Stats         GroupStats // 替换原来的 Average
 }
+
+// NodeHealth 节点健康状态
+type NodeHealth struct {
+	Total            int     // 总节点数
+	Ready            int     // 就绪节点数
+	NotReady         int     // 未就绪节点数 
+	ClusterCPUUsage  float64 // 集群CPU使用率
+	ClusterMemoryUsage float64 // 集群内存使用率
+}
+
+// HarborHealth Harbor健康状态
+type HarborHealth struct {
+	Status     string            // 总体状态
+	Components []HarborComponent // 组件状态
+}
+
+// HarborComponent Harbor组件健康状态
+type HarborComponent struct {
+	Name   string // 组件名称
+	Status string // 组件状态
+}
+
 type ReportData struct {
 	Timestamp    time.Time
 	MetricGroups map[string]*MetricGroup
 	ChartData    map[string]template.JS
 	Project      string
+	NodeHealth   *NodeHealth   // 节点健康状态
+	HarborHealth *HarborHealth // Harbor健康状态
 }
 
 func GetStatusText(status string) string {
@@ -169,7 +194,45 @@ func GenerateReport(data ReportData) (string, error) {
 	}
 
 	// 生成报告
-	tmpl, err := template.ParseFiles("templates/report.html")
+	// 创建模板函数映射
+	funcMap := template.FuncMap{
+		"now": time.Now,
+		"toJSON": func(v interface{}) string {
+			jsonData, err := json.Marshal(v)
+			if err != nil {
+				return "{}"
+			}
+			return string(jsonData)
+		},
+		"groupPodsByNamespace": func(metrics []MetricData) map[string][]MetricData {
+			return groupPodsByNamespace(metrics)
+		},
+		"getPodName": func(labels []LabelData) string {
+			return getPodName(labels)
+		},
+		"getNamespace": func(labels []LabelData) string {
+			return getNamespace(labels)
+		},
+		"getPodStatusClass": func(status string) string {
+			return getPodStatusClass(status)
+		},
+		"getPodPhase": func(labels []LabelData) string {
+			return getPodPhase(labels)
+		},
+		// 浮点数比较函数
+		"floatLessThan": func(a, b float64) bool {
+			return a < b
+		},
+		"floatLessThanEqual": func(a, b float64) bool {
+			return a <= b
+		},
+		"floatGreaterThan": func(a, b float64) bool {
+			return a > b
+		},
+	}
+
+	// 使用带函数映射的模板
+	tmpl, err := template.New("report.html").Funcs(funcMap).ParseFiles("templates/report.html")
 	if err != nil {
 		return "", fmt.Errorf("parsing template: %w", err)
 	}
@@ -191,4 +254,78 @@ func GenerateReport(data ReportData) (string, error) {
 	log.Printf("项目[%s]报告生成成功: %s", data.Project, filename)
 
 	return filename, nil // 添加返回语句
+}
+
+// 按命名空间分组Pod指标
+func groupPodsByNamespace(metrics []MetricData) map[string][]MetricData {
+	namespaceGroups := make(map[string][]MetricData)
+	
+	for _, metric := range metrics {
+		namespace := "default"
+		
+		// 查找namespace标签
+		for _, label := range metric.Labels {
+			if label.Name == "namespace" {
+				namespace = label.Value
+				break
+			}
+		}
+		
+		if _, exists := namespaceGroups[namespace]; !exists {
+			namespaceGroups[namespace] = []MetricData{}
+		}
+		
+		namespaceGroups[namespace] = append(namespaceGroups[namespace], metric)
+	}
+	
+	return namespaceGroups
+}
+
+// 从标签中获取Pod名称
+func getPodName(labels []LabelData) string {
+	for _, label := range labels {
+		if label.Name == "pod" {
+			return label.Value
+		}
+	}
+	return "未知"
+}
+
+// 根据Pod状态获取CSS类名
+func getPodStatusClass(status string) string {
+	status = strings.ToLower(status)
+	switch status {
+	case "running":
+		return "running"
+	case "succeeded":
+		return "succeeded"
+	case "pending":
+		return "pending"
+	case "failed":
+		return "failed"
+	case "unknown", "":
+		return "unknown"
+	default:
+		return "unknown"
+	}
+}
+
+// 从标签中获取Pod阶段信息
+func getPodPhase(labels []LabelData) string {
+	for _, label := range labels {
+		if label.Name == "phase" {
+			return label.Value
+		}
+	}
+	return "Unknown"
+}
+
+// 从标签中获取命名空间
+func getNamespace(labels []LabelData) string {
+	for _, label := range labels {
+		if label.Name == "namespace" {
+			return label.Value
+		}
+	}
+	return "default"
 }

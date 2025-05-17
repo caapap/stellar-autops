@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+    <title>星相运维平台巡检报告</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .card {
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .stat-item {
+            text-align: center;
+        }
+        .stat-item .label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .stat-item .value {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        .stat-item .value.alert {
+            color: #dc3545;
+        }
+        .stat-item .value .critical {
+            color: #dc3545;
+            margin-right: 10px;
+        }
+        .stat-item .value .warning {
+            color: #ffc107;
+        }
+
+         
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            table-layout: auto;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+            min-width: 100px;
+        }
+
+         
+        th:first-child, td:first-child {
+            min-width: 150px;
+        }
+
+         
+        th:last-child, td:last-child {
+            min-width: 180px;
+        }
+
+         
+        th:nth-last-child(2), td:nth-last-child(2) {
+            min-width: 80px;
+        }
+
+         
+        th:nth-last-child(3), td:nth-last-child(3) {
+            min-width: 100px;
+        }
+
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+         
+        tr.warning { 
+            background-color: #fff3cd !important;
+        }
+        tr.normal { 
+            background-color: #d4edda !important;
+        }
+        tr.critical { 
+            background-color: #f8d7da !important;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .label-value {
+            display: inline-block;
+            background-color: #e9ecef;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            word-break: break-all;
+            white-space: normal;
+        }
+
+        h1, h2, h3 {
+            color: #333;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .chart-container {
+            height: 400px;
+            margin-bottom: 30px;
+        }
+
+         
+        .machine-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+        
+        .machine-cell {
+            width: 30px;
+            height: 30px;
+            border-radius: 3px;
+            background-color: #4CAF50;  
+            cursor: pointer;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .machine-cell.offline {
+            background-color: #d3d3d3;  
+            color: #333;
+        }
+        
+        .machine-cell.warning {
+            background-color: #ffc107;  
+            color: #333;
+        }
+        
+        .machine-cell.critical {
+            background-color: #dc3545;  
+            color: white;
+        }
+        
+        .machine-status-legend {
+            display: flex;
+            margin-bottom: 20px;
+            font-size: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-right: 20px;
+            margin-bottom: 5px;
+        }
+        
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            margin-right: 5px;
+        }
+        
+        .legend-color.normal {
+            background-color: #4CAF50;
+        }
+        
+        .legend-color.warning {
+            background-color: #ffc107;
+        }
+        
+        .legend-color.critical {
+            background-color: #dc3545;
+        }
+        
+        .legend-color.offline {
+            background-color: #d3d3d3;
+        }
+        
+        .tooltip {
+            visibility: hidden;
+            position: absolute;
+            bottom: 115%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #333;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: pre-line;
+            z-index: 1;
+            opacity: 0;
+            transition: opacity 0.3s;
+            text-align: left;
+            min-width: 180px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        
+        .machine-cell:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        .tooltip::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #333 transparent transparent transparent;
+        }
+        
+        .tooltip-row {
+            display: flex;
+            margin-bottom: 5px;
+        }
+        
+        .tooltip-label {
+            font-weight: bold;
+            width: 70px;
+            color: #cccccc;
+        }
+        
+        .tooltip-value {
+            color: white;
+        }
+        
+        .inline-status {
+            display: inline-block;
+            vertical-align: middle;
+        }
+        
+        .machine-count {
+            margin-left: 20px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+         
+        @media screen and (max-width: 1200px) {
+            .container {
+                padding: 10px;
+            }
+            
+            table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+            
+            td, th {
+                white-space: nowrap;
+            }
+        }
+
+         
+        .pod-status-section {
+            margin-bottom: 30px;
+        }
+
+        .namespace-section {
+            margin-bottom: 20px;
+        }
+
+        .namespace-title {
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #333;
+            padding-left: 5px;
+            border-left: 4px solid #4CAF50;
+        }
+
+        .pod-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+
+        .pod-cell {
+            width: 30px;
+            height: 30px;
+            border-radius: 3px;
+            cursor: pointer;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: white;
+            font-weight: bold;
+        }
+
+        .pod-cell.running {
+            background-color: #4CAF50;  
+        }
+
+        .pod-cell.succeeded {
+            background-color: #4CAF50;  
+        }
+
+        .pod-cell.pending {
+            background-color: #ffc107;  
+            color: #333;
+        }
+
+        .pod-cell.failed {
+            background-color: #dc3545;  
+        }
+
+        .pod-cell.unknown {
+            background-color: #6c757d;  
+        }
+
+        .pod-count {
+            margin-left: 20px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .pod-status-legend {
+            display: flex;
+            margin: 10px 0 20px 0;
+            font-size: 12px;
+            flex-wrap: wrap;
+        }
+
+        .pod-status-legend .legend-item {
+            display: flex;
+            align-items: center;
+            margin-right: 20px;
+            margin-bottom: 5px;
+        }
+
+        .pod-status-legend .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            margin-right: 5px;
+        }
+
+        .pod-status-legend .legend-color.running,
+        .pod-status-legend .legend-color.succeeded {
+            background-color: #4CAF50;
+        }
+
+        .pod-status-legend .legend-color.pending {
+            background-color: #ffc107;
+        }
+
+        .pod-status-legend .legend-color.failed {
+            background-color: #dc3545;
+        }
+
+        .pod-status-legend .legend-color.unknown {
+            background-color: #6c757d;
+        }
+
+        .pod-cell:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+         
+        .health-cards-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 15px 0;
+        }
+
+         
+        .node-health-section {
+            margin: 0;
+            padding: 0;
+            flex: 1;
+            min-width: 300px;
+        }
+
+         
+        .harbor-health-section {
+            margin: 0;
+            padding: 0;
+            flex: 1;
+            min-width: 300px;
+        }
+
+         
+        .health-status {
+            display: inline-flex;
+            align-items: center;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            width: 100%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .health-status.healthy {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .health-status.warning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .health-status.critical {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .health-status-icon {
+            font-size: 20px;
+            margin-right: 10px;
+        }
+
+        .harbor-components {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .harbor-component {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            border-radius: 6px;
+            background-color: white;
+            min-width: 180px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .harbor-component.healthy {
+            border-left: 3px solid #4CAF50;
+        }
+
+        .harbor-component.unhealthy {
+            border-left: 3px solid #dc3545;
+        }
+
+        .component-name {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .component-status {
+            color: #4CAF50;
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            background-color: #f0fff4;
+        }
+
+        .harbor-component.unhealthy .component-status {
+            color: #dc3545;
+            background-color: #fff5f5;
+        }
+
+        .node-health-warning {
+            font-size: 14px;
+            color: #721c24;
+            margin: 5px 0;
+        }
+
+         
+        .resource-usage-legend {
+            display: flex;
+            margin-top: 10px;
+            font-size: 12px;
+            flex-wrap: wrap;
+        }
+
+        .resource-usage-legend .legend-item {
+            display: flex;
+            align-items: center;
+            margin-right: 20px;
+            margin-bottom: 5px;
+        }
+
+        .resource-usage-legend .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            margin-right: 5px;
+        }
+
+        .resource-usage-legend .legend-color.normal {
+            background-color: #d4edda;
+        }
+
+        .resource-usage-legend .legend-color.warning {
+            background-color: #fff3cd;
+        }
+
+        .resource-usage-legend .legend-color.critical {
+            background-color: #f8d7da;
+        }
+
+         
+        .dashboard-section {
+            margin: 20px 0;
+            padding: 0;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+            padding: 8px 15px;
+            background-color: #f5f5f5;
+            border-left: 4px solid #4CAF50;
+            border-radius: 0 4px 4px 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .section-title-icon {
+            margin-right: 8px;
+            font-size: 18px;
+        }
+
+        .section-title.pods {
+            border-left-color: #4a90e2;
+        }
+
+        .section-title.nodes {
+            border-left-color: #28a745;
+        }
+
+        .section-title.resources {
+            border-left-color: #ffc107;
+        }
+
+        .section-title.registry {
+            border-left-color: #17a2b8;
+        }
+
+        .metrics-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .metric-card {
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            padding: 20px;
+            text-align: center;
+            min-width: 150px;
+            flex: 1;
+        }
+
+        .metric-card.normal {
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+        }
+
+        .metric-card.warning {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+
+        .metric-card.critical {
+            background-color: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
+
+        .metric-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .metric-label {
+            font-size: 14px;
+            color: #666;
+        }
+
+         
+        .harbor-status-card {
+            background-color: #d4edda;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+        }
+
+        .harbor-status-icon {
+            font-size: 20px;
+            color: #155724;
+            margin-right: 10px;
+        }
+
+        .harbor-status-text {
+            font-size: 16px;
+            font-weight: bold;
+            color: #155724;
+        }
+
+        .components-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .component-card {
+            background-color: #fff;
+            border-radius: 6px;
+            border-left: 3px solid #4CAF50;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-width: 180px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .component-name {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .component-status {
+            color: #4CAF50;
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            background-color: #f0fff4;
+        }
+
+        .component-card.unhealthy {
+            border-left-color: #dc3545;
+        }
+
+        .component-card.unhealthy .component-status {
+            color: #dc3545;
+            background-color: #fff5f5;
+        }
+
+         
+        .resource-legend {
+            display: flex;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-right: 20px;
+            margin-bottom: 5px;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            margin-right: 5px;
+        }
+
+        .legend-color.normal {
+            background-color: #d4edda;
+        }
+
+        .legend-color.warning {
+            background-color: #fff3cd;
+        }
+
+        .legend-color.critical {
+            background-color: #f8d7da;
+        }
+
+         
+        .overview-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            margin: 20px 0;
+            padding: 10px 15px;
+            background-color: #f0f8ff;
+            border-left: 5px solid #4a90e2;
+            border-radius: 0 5px 5px 0;
+        }
+
+         
+        .report-main-section {
+            margin: 25px 0;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            background-color: #fff;
+        }
+
+        .main-section-header {
+            font-size: 18px;
+            font-weight: bold;
+            color: #fff;
+            background-color: #4a90e2;
+            padding: 12px 15px;
+            display: flex;
+            align-items: center;
+        }
+
+        .main-section-icon {
+            margin-right: 10px;
+            font-size: 20px;
+        }
+
+        .subsection {
+            margin: 15px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .subsection-header {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            background-color: #f0f0f0;
+            padding: 10px 15px;
+            border-left: 4px solid #4CAF50;
+            display: flex;
+            align-items: center;
+        }
+
+        .subsection-icon {
+            margin-right: 8px;
+            font-size: 16px;
+        }
+
+        .subsection-content {
+            padding: 15px;
+        }
+
+        .subsection-header.nodes {
+            border-left-color: #28a745;
+        }
+
+        .subsection-header.resources {
+            border-left-color: #ffc107;
+        }
+
+        .subsection-header.registry {
+            border-left-color: #17a2b8;
+        }
+
+        .subsection-header.pods {
+            border-left-color: #4a90e2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        
+        <h1 style="text-align: center">星相运维平台巡检报告</h1>
+        <p>生成时间: 2025-05-17 21:32:06</p>
+
+        
+        <div class="report-main-section">
+            <div class="main-section-header">
+                <span class="main-section-icon">📋</span>
+                <span>巡检概览</span>
+            </div>
+            
+            
+            <div class="summary-cards">
+                
+                <div class="card 基础资源使用情况">
+                    <h3>基础资源使用情况</h3>
+                    <div class="stats">
+                        <div class="stat-item">
+                            <div class="label">最大值</div>
+                            <div class="value">66968365.00</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="label">最小值</div>
+                            <div class="value">0.05</div>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <div class="label">告警数</div>
+                            <div class="value alert">
+                                10/95
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="label">告警详情</div>
+                            <div class="value">
+                                <span class="critical">严重:8</span>
+                                <span class="warning">警告:2</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card 自定义指标项组">
+                    <h3>自定义指标项组</h3>
+                    <div class="stats">
+                        <div class="stat-item">
+                            <div class="label">最大值</div>
+                            <div class="value">19.90</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="label">最小值</div>
+                            <div class="value">5.59</div>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <div class="label">告警数</div>
+                            <div class="value ">
+                                0/2
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="label">告警详情</div>
+                            <div class="value">
+                                <span class="critical">严重:0</span>
+                                <span class="warning">警告:0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+
+        
+        <div class="section">
+            <div class="section-title">
+                <span class="section-title-icon">🖥️</span>
+                <span>服务器硬件状态</span>
+            </div>
+            
+            <div class="machine-grid" id="machineGrid">
+                
+            </div>
+        </div>
+
+        
+        
+        
+        <div class="section">
+            <h2>自定义指标项组</h2>
+            
+                <h3><li>/iflytek分区磁盘使用率</li></h3>
+                
+                <table>
+                    <tr>
+                        <th>指标名称</th>
+                        
+                        
+                            <th data-label-name="path">挂载点</th>
+                        
+                            <th data-label-name="device">磁盘</th>
+                        
+                            <th data-label-name="ident">节点名称</th>
+                        
+                        <th>值</th>
+                        <th>状态</th>
+                        <th>检测时间</th>
+                    </tr>
+                    
+                    <tr class="normal">
+                        <td>/iflytek分区磁盘使用率</td>
+                        
+                            
+                            
+                                
+                                    <td data-label-name="path">
+                                        <span class="label-value">/iflytek</span>
+                                    </td>
+                                
+                            
+                                
+                            
+                                
+                            
+                        
+                            
+                            
+                                
+                            
+                                
+                                    <td data-label-name="device">
+                                        <span class="label-value">sdb</span>
+                                    </td>
+                                
+                            
+                                
+                            
+                        
+                            
+                            
+                                
+                            
+                                
+                            
+                                
+                                    <td data-label-name="ident">
+                                        <span class="label-value">iflytek238</span>
+                                    </td>
+                                
+                            
+                        
+                        <td>5.59%</td>
+                        <td>
+                            正常
+                            
+                        </td>
+                        <td>2025-05-17 21:32:07</td>
+                    </tr>
+                    
+                    <tr class="normal">
+                        <td>/iflytek分区磁盘使用率</td>
+                        
+                            
+                            
+                                
+                                    <td data-label-name="path">
+                                        <span class="label-value">/iflytek</span>
+                                    </td>
+                                
+                            
+                                
+                            
+                                
+                            
+                        
+                            
+                            
+                                
+                            
+                                
+                                    <td data-label-name="device">
+                                        <span class="label-value">sdb1</span>
+                                    </td>
+                                
+                            
+                                
+                            
+                        
+                            
+                            
+                                
+                            
+                                
+                            
+                                
+                                    <td data-label-name="ident">
+                                        <span class="label-value">iflytek239</span>
+                                    </td>
+                                
+                            
+                        
+                        <td>19.90%</td>
+                        <td>
+                            正常
+                            
+                        </td>
+                        <td>2025-05-17 21:32:07</td>
+                    </tr>
+                    
+                </table>
+                
+            
+        </div>
+        
+    </div>
+
+<script>
+    
+    function getRandomColor() {
+        const hue = Math.random() * 360;
+        return {
+            background: `hsla(${hue}, 70%, 95%, 1)`,
+            border: `hsla(${hue}, 70%, 70%, 1)`
+        };
+    }
+
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        const cards = document.querySelectorAll('.card');
+        const cardCount = cards.length;
+        
+        
+        const container = document.querySelector('.summary-cards');
+        if (cardCount <= 2) {
+            container.style.gridTemplateColumns = `repeat(${cardCount}, 1fr)`;
+        } else if (cardCount <= 4) {
+            container.style.gridTemplateColumns = 'repeat(2, 1fr)';
+        }
+
+        
+        cards.forEach(card => {
+            const colors = getRandomColor();
+            card.style.backgroundColor = colors.background;
+            card.style.borderLeft = `4px solid ${colors.border}`;
+        });
+    });
+</script>
+
+<script>
+    
+    var data = JSON.parse('{\u0022基础资源使用情况\u0022:{\u0022Type\u0022:\u0022基础资源使用情况\u0022,\u0022MetricsByName\u0022:{\u0022CPU使用率\u0022:[{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022CPU使用率\u0022,\u0022Description\u0022:\u0022节点CPU使用率统计\u0022,\u0022Value\u0022:0.4334778101196465,\u0022Threshold\u0022:80,\u0022Unit\u0022:\u0022%\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.747083859\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022ident\u0022,\u0022Alias\u0022:\u0022节点名称\u0022,\u0022Value\u0022:\u0022241-ftp\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022CPU使用率\u0022,\u0022Description\u0022:\u0022节点CPU使用率统计\u0022,\u0022Value\u0022:4.967276402361145,\u0022Threshold\u0022:80,\u0022Unit\u0022:\u0022%\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.74709015\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022ident\u0022,\u0022Alias\u0022:\u0022节点名称\u0022,\u0022Value\u0022:\u0022devops-app-169\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022CPU使用率\u0022,\u0022Description\u0022:\u0022节点CPU使用率统计\u0022,\u0022Value\u0022:0.051853292441901525,\u0022Threshold\u0022:80,\u0022Unit\u0022:\u0022%\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.74709439\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022ident\u0022,\u0022Alias\u0022:\u0022节点名称\u0022,\u0022Value\u0022:\u0022iflytek238\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022CPU使用率\u0022,\u0022Description\u0022:\u0022节点CPU使用率统计\u0022,\u0022Value\u0022:16.18150684900803,\u0022Threshold\u0022:80,\u0022Unit\u0022:\u0022%\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.747094754\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022ident\u0022,\u0022Alias\u0022:\u0022节点名称\u0022,\u0022Value\u0022:\u0022iflytek239\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022CPU使用率\u0022,\u0022Description\u0022:\u0022节点CPU使用率统计\u0022,\u0022Value\u0022:2.1875879227101223,\u0022Threshold\u0022:80,\u0022Unit\u0022:\u0022%\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.747094902\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022ident\u0022,\u0022Alias\u0022:\u0022节点名称\u0022,\u0022Value\u0022:\u0022server176\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022CPU使用率\u0022,\u0022Description\u0022:\u0022节点CPU使用率统计\u0022,\u0022Value\u0022:60.93912591050989,\u0022Threshold\u0022:80,\u0022Unit\u0022:\u0022%\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.747097642\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022ident\u0022,\u0022Alias\u0022:\u0022节点名称\u0022,\u0022Value\u0022:\u0022zjma6\u0022}]}],\u0022Pod运行状态\u0022:[{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755721272\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022argocd\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022devops-argocd-application-controller-0\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755731125\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022argocd\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022devops-argocd-applicationset-controller-86959cfd77-gxfkw\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755738004\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022argocd\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022devops-argocd-dex-server-6cd7d6fbbb-x8rlf\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755745144\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022argocd\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022devops-argocd-notifications-controller-6f7dcdc57f-kbz8p\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755752074\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022argocd\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022devops-argocd-redis-855b65f5c4-x9lsx\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.75575919\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022argocd\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022devops-argocd-repo-server-594cb5bd6d-z5x42\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755765706\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022argocd\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022devops-argocd-server-5b58bd774c-ts2xr\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755771655\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022default\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022traefik-b975d5bf6-b4hrx\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755777384\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022default\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022whoami-5f6cf49755-6n9tq\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755783042\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kibana\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022fluent-fluent-bit-wmwhh\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755788897\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kube-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022snapshot-controller-0\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Pending\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755800287\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kube-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022calico-kube-controllers-6f996c8485-lsfxf\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755806246\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kube-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022calico-node-4zqjg\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755812151\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kube-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022coredns-6f7684f6c9-dgvsn\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755818046\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kube-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022coredns-6f7684f6c9-r9rn8\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755823843\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kube-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022kube-apiserver-iflytek239\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755829817\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kube-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022kube-controller-manager-iflytek239\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755836\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kube-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022kube-proxy-r8f9p\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755841881\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kube-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022kube-scheduler-iflytek239\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.75584785\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kube-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022nodelocaldns-ltk27\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755854003\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kube-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022openebs-localpv-provisioner-7bf67bc995-r764z\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.75586046\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kubesphere-controls-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022default-http-backend-64599cfd89-5npp9\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Pending\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755866953\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kubesphere-controls-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022default-http-backend-696d6bf54f-cm8vr\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755873068\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kubesphere-controls-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022kubectl-admin-b49cf5585-6vw42\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755879249\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kubesphere-devops-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022devops-28909950-gjv57\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Pending\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755885289\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kubesphere-devops-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022devops-apiserver-869c476b69-bxzhx\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755891447\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kubesphere-devops-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022devops-controller-5df497599b-wbhfd\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755902189\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kubesphere-devops-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022devops-jenkins-8585597845-ms76m\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.75590855\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kubesphere-devops-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022s2ioperator-0\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755914716\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kubesphere-devops-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022devops-28909560-hzjsn\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Succeeded\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755923801\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kubesphere-devops-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022devops-28909590-s42rh\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Succeeded\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755929793\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kubesphere-devops-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022devops-28909620-zwwjn\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Succeeded\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755935821\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kubesphere-monitoring-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022alertmanager-main-0\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755942135\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kubesphere-monitoring-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022kube-state-metrics-774ff789cf-zdz8p\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755947927\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kubesphere-monitoring-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022node-exporter-f4g58\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755954131\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kubesphere-monitoring-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022notification-manager-deployment-78ff4d6789-wfnvm\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755973828\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kubesphere-monitoring-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022notification-manager-operator-85d67fdc46-mmzkg\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755979848\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kubesphere-monitoring-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022prometheus-k8s-0\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755986114\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kubesphere-monitoring-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022prometheus-operator-57c78bd7fb-vq4q4\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755992169\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kubesphere-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022ks-apiserver-88cf58d58-ppplz\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.755998012\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kubesphere-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022ks-console-54ddb79bf9-78twl\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756004004\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kubesphere-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022ks-controller-manager-78b895956d-n6ph2\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756014861\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kubesphere-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022ks-installer-67946fcc5f-9tdh4\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756020842\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kubesphere-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022minio-7879c5dd65-7tjrh\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756027187\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kubesphere-system\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022openldap-0\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756032815\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kxdigit\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022mysql-0\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Pending\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756038453\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kxdigit\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022nacos-0\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Pending\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756043852\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kxdigit\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022nacos-1\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Pending\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756049286\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kxdigit\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022nacos-2\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Pending\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756060249\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kxdigit\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022kafka-0\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756066139\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kxdigit\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022kafka-1\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756071647\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kxdigit\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022kafka-2\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756077612\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kxdigit\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022kafka-exporter-9b6c4ff76-46wc5\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756083266\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kxdigit\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022redis-master-0\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756091935\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kxdigit\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022redis-replicas-0\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756097507\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kxdigit\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022zookeeper-0\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756103162\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kxdigit\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022zookeeper-1\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756108856\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kxdigit\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022zookeeper-2\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.75611492\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kxdigit-monitoring\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022grafana-6d47965b6f-7cxv8\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Pending\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756120895\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kxdigit-monitoring\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022eck-stack-eck-kibana-kb-555d4fb9b7-z62d9\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756126816\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kxdigit-monitoring\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022elastic-operator-0\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756133307\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kxdigit-monitoring\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022elasticsearch-es-default-0\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756139522\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kxdigit-monitoring\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022es239-prometheus-elasticsearch-exporter-754c7fb948-d2crp\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756145395\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kxdigit-monitoring\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022loki-0\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756151507\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kxdigit-monitoring\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022loki-promtail-t259f\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756157476\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kxdigit-monitoring\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022stellar-autops-57dc9b8cb6-mcxm5\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.75616556\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kxdigit-monitoring\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022stellar-categraf-g2dc5\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756171591\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kxdigit-monitoring\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022stellar-center-c847d4b65-6fb5d\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756177276\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kxdigit-monitoring\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022stellar-database-0\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756183203\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kxdigit-monitoring\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022stellar-nginx-6bb8c4d44d-s95pv\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756188858\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kxdigit-monitoring\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022stellar-prometheus-0\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022Pod运行状态\u0022,\u0022Description\u0022:\u0022集群Pod运行状态统计\u0022,\u0022Value\u0022:1,\u0022Threshold\u0022:1,\u0022Unit\u0022:\u0022\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.756194704\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022namespace\u0022,\u0022Alias\u0022:\u0022命名空间\u0022,\u0022Value\u0022:\u0022kxdigit-monitoring\u0022},{\u0022Name\u0022:\u0022pod\u0022,\u0022Alias\u0022:\u0022Pod名称\u0022,\u0022Value\u0022:\u0022stellar-redis-0\u0022},{\u0022Name\u0022:\u0022phase\u0022,\u0022Alias\u0022:\u0022运行状态\u0022,\u0022Value\u0022:\u0022Running\u0022}]}],\u0022内存使用率\u0022:[{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022内存使用率\u0022,\u0022Description\u0022:\u0022节点内存使用率统计\u0022,\u0022Value\u0022:10.315867990494507,\u0022Threshold\u0022:85,\u0022Unit\u0022:\u0022%\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.748125873\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022ident\u0022,\u0022Alias\u0022:\u0022节点名称\u0022,\u0022Value\u0022:\u0022241-ftp\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022内存使用率\u0022,\u0022Description\u0022:\u0022节点内存使用率统计\u0022,\u0022Value\u0022:26.55915410470179,\u0022Threshold\u0022:85,\u0022Unit\u0022:\u0022%\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.748126507\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022ident\u0022,\u0022Alias\u0022:\u0022节点名称\u0022,\u0022Value\u0022:\u0022devops-app-169\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022内存使用率\u0022,\u0022Description\u0022:\u0022节点内存使用率统计\u0022,\u0022Value\u0022:3.6630851241704248,\u0022Threshold\u0022:85,\u0022Unit\u0022:\u0022%\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.748126855\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022ident\u0022,\u0022Alias\u0022:\u0022节点名称\u0022,\u0022Value\u0022:\u0022iflytek238\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022内存使用率\u0022,\u0022Description\u0022:\u0022节点内存使用率统计\u0022,\u0022Value\u0022:39.984900268556366,\u0022Threshold\u0022:85,\u0022Unit\u0022:\u0022%\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.748127186\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022ident\u0022,\u0022Alias\u0022:\u0022节点名称\u0022,\u0022Value\u0022:\u0022iflytek239\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022内存使用率\u0022,\u0022Description\u0022:\u0022节点内存使用率统计\u0022,\u0022Value\u0022:15.98347551882955,\u0022Threshold\u0022:85,\u0022Unit\u0022:\u0022%\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.748129285\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022ident\u0022,\u0022Alias\u0022:\u0022节点名称\u0022,\u0022Value\u0022:\u0022server176\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022内存使用率\u0022,\u0022Description\u0022:\u0022节点内存使用率统计\u0022,\u0022Value\u0022:76.76394988811327,\u0022Threshold\u0022:85,\u0022Unit\u0022:\u0022%\u0022,\u0022Status\u0022:\u0022warning\u0022,\u0022StatusText\u0022:\u0022警告\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.748131949\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022ident\u0022,\u0022Alias\u0022:\u0022节点名称\u0022,\u0022Value\u0022:\u0022zjma6\u0022}]}],\u0022根分区磁盘使用率\u0022:[{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022根分区磁盘使用率\u0022,\u0022Description\u0022:\u0022根分区磁盘使用率统计\u0022,\u0022Value\u0022:80.15644165829285,\u0022Threshold\u0022:80,\u0022Unit\u0022:\u0022%\u0022,\u0022Status\u0022:\u0022critical\u0022,\u0022StatusText\u0022:\u0022严重\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.749828508\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022ident\u0022,\u0022Alias\u0022:\u0022节点名称\u0022,\u0022Value\u0022:\u0022241-ftp\u0022},{\u0022Name\u0022:\u0022path\u0022,\u0022Alias\u0022:\u0022挂载点\u0022,\u0022Value\u0022:\u0022\/\u0022},{\u0022Name\u0022:\u0022device\u0022,\u0022Alias\u0022:\u0022磁盘\u0022,\u0022Value\u0022:\u0022dm-0\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022根分区磁盘使用率\u0022,\u0022Description\u0022:\u0022根分区磁盘使用率统计\u0022,\u0022Value\u0022:7.298036099939964,\u0022Threshold\u0022:80,\u0022Unit\u0022:\u0022%\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.749829193\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022ident\u0022,\u0022Alias\u0022:\u0022节点名称\u0022,\u0022Value\u0022:\u0022iflytek238\u0022},{\u0022Name\u0022:\u0022path\u0022,\u0022Alias\u0022:\u0022挂载点\u0022,\u0022Value\u0022:\u0022\/\u0022},{\u0022Name\u0022:\u0022device\u0022,\u0022Alias\u0022:\u0022磁盘\u0022,\u0022Value\u0022:\u0022sda3\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022根分区磁盘使用率\u0022,\u0022Description\u0022:\u0022根分区磁盘使用率统计\u0022,\u0022Value\u0022:66.64249548962516,\u0022Threshold\u0022:80,\u0022Unit\u0022:\u0022%\u0022,\u0022Status\u0022:\u0022warning\u0022,\u0022StatusText\u0022:\u0022警告\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.749829594\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022ident\u0022,\u0022Alias\u0022:\u0022节点名称\u0022,\u0022Value\u0022:\u0022iflytek239\u0022},{\u0022Name\u0022:\u0022path\u0022,\u0022Alias\u0022:\u0022挂载点\u0022,\u0022Value\u0022:\u0022\/\u0022},{\u0022Name\u0022:\u0022device\u0022,\u0022Alias\u0022:\u0022磁盘\u0022,\u0022Value\u0022:\u0022sda3\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022根分区磁盘使用率\u0022,\u0022Description\u0022:\u0022根分区磁盘使用率统计\u0022,\u0022Value\u0022:99.99997714607602,\u0022Threshold\u0022:80,\u0022Unit\u0022:\u0022%\u0022,\u0022Status\u0022:\u0022critical\u0022,\u0022StatusText\u0022:\u0022严重\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.749829972\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022ident\u0022,\u0022Alias\u0022:\u0022节点名称\u0022,\u0022Value\u0022:\u0022devops-app-169\u0022},{\u0022Name\u0022:\u0022path\u0022,\u0022Alias\u0022:\u0022挂载点\u0022,\u0022Value\u0022:\u0022\/\u0022},{\u0022Name\u0022:\u0022device\u0022,\u0022Alias\u0022:\u0022磁盘\u0022,\u0022Value\u0022:\u0022sda3\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022根分区磁盘使用率\u0022,\u0022Description\u0022:\u0022根分区磁盘使用率统计\u0022,\u0022Value\u0022:26.623749509904886,\u0022Threshold\u0022:80,\u0022Unit\u0022:\u0022%\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.749830146\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022ident\u0022,\u0022Alias\u0022:\u0022节点名称\u0022,\u0022Value\u0022:\u0022server176\u0022},{\u0022Name\u0022:\u0022path\u0022,\u0022Alias\u0022:\u0022挂载点\u0022,\u0022Value\u0022:\u0022\/\u0022},{\u0022Name\u0022:\u0022device\u0022,\u0022Alias\u0022:\u0022磁盘\u0022,\u0022Value\u0022:\u0022sda3\u0022}]}],\u0022系统运行时间\u0022:[{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022系统运行时间\u0022,\u0022Description\u0022:\u0022节点系统运行时间\u0022,\u0022Value\u0022:66968365,\u0022Threshold\u0022:0,\u0022Unit\u0022:\u0022秒\u0022,\u0022Status\u0022:\u0022critical\u0022,\u0022StatusText\u0022:\u0022严重\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.748974173\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022ident\u0022,\u0022Alias\u0022:\u0022节点名称\u0022,\u0022Value\u0022:\u0022241-ftp\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022系统运行时间\u0022,\u0022Description\u0022:\u0022节点系统运行时间\u0022,\u0022Value\u0022:23947243,\u0022Threshold\u0022:0,\u0022Unit\u0022:\u0022秒\u0022,\u0022Status\u0022:\u0022critical\u0022,\u0022StatusText\u0022:\u0022严重\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.748974664\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022ident\u0022,\u0022Alias\u0022:\u0022节点名称\u0022,\u0022Value\u0022:\u0022devops-app-169\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022系统运行时间\u0022,\u0022Description\u0022:\u0022节点系统运行时间\u0022,\u0022Value\u0022:772009,\u0022Threshold\u0022:0,\u0022Unit\u0022:\u0022秒\u0022,\u0022Status\u0022:\u0022critical\u0022,\u0022StatusText\u0022:\u0022严重\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.748975023\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022ident\u0022,\u0022Alias\u0022:\u0022节点名称\u0022,\u0022Value\u0022:\u0022iflytek238\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022系统运行时间\u0022,\u0022Description\u0022:\u0022节点系统运行时间\u0022,\u0022Value\u0022:811839,\u0022Threshold\u0022:0,\u0022Unit\u0022:\u0022秒\u0022,\u0022Status\u0022:\u0022critical\u0022,\u0022StatusText\u0022:\u0022严重\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.748975339\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022ident\u0022,\u0022Alias\u0022:\u0022节点名称\u0022,\u0022Value\u0022:\u0022iflytek239\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022系统运行时间\u0022,\u0022Description\u0022:\u0022节点系统运行时间\u0022,\u0022Value\u0022:2088200,\u0022Threshold\u0022:0,\u0022Unit\u0022:\u0022秒\u0022,\u0022Status\u0022:\u0022critical\u0022,\u0022StatusText\u0022:\u0022严重\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.748975473\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022ident\u0022,\u0022Alias\u0022:\u0022节点名称\u0022,\u0022Value\u0022:\u0022server176\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022系统运行时间\u0022,\u0022Description\u0022:\u0022节点系统运行时间\u0022,\u0022Value\u0022:880744,\u0022Threshold\u0022:0,\u0022Unit\u0022:\u0022秒\u0022,\u0022Status\u0022:\u0022critical\u0022,\u0022StatusText\u0022:\u0022严重\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.748975941\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022ident\u0022,\u0022Alias\u0022:\u0022节点名称\u0022,\u0022Value\u0022:\u0022zjma6\u0022}]}]},\u0022Stats\u0022:{\u0022MaxValue\u0022:66968365,\u0022MinValue\u0022:0.051853292441901525,\u0022Average\u0022:0,\u0022AlertCount\u0022:10,\u0022CriticalCount\u0022:8,\u0022WarningCount\u0022:2,\u0022TotalCount\u0022:95}},\u0022自定义指标项组\u0022:{\u0022Type\u0022:\u0022自定义指标项组\u0022,\u0022MetricsByName\u0022:{\u0022\/iflytek分区磁盘使用率\u0022:[{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022\/iflytek分区磁盘使用率\u0022,\u0022Description\u0022:\u0022\/iflytek分区磁盘使用率统计\u0022,\u0022Value\u0022:5.592719557101592,\u0022Threshold\u0022:80,\u0022Unit\u0022:\u0022%\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.757179283\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022path\u0022,\u0022Alias\u0022:\u0022挂载点\u0022,\u0022Value\u0022:\u0022\/iflytek\u0022},{\u0022Name\u0022:\u0022device\u0022,\u0022Alias\u0022:\u0022磁盘\u0022,\u0022Value\u0022:\u0022sdb\u0022},{\u0022Name\u0022:\u0022ident\u0022,\u0022Alias\u0022:\u0022节点名称\u0022,\u0022Value\u0022:\u0022iflytek238\u0022}]},{\u0022Instance\u0022:\u0022\u0022,\u0022Name\u0022:\u0022\/iflytek分区磁盘使用率\u0022,\u0022Description\u0022:\u0022\/iflytek分区磁盘使用率统计\u0022,\u0022Value\u0022:19.9012056677835,\u0022Threshold\u0022:80,\u0022Unit\u0022:\u0022%\u0022,\u0022Status\u0022:\u0022normal\u0022,\u0022StatusText\u0022:\u0022正常\u0022,\u0022Timestamp\u0022:\u00222025-05-17T21:32:07.757180418\u002b08:00\u0022,\u0022Labels\u0022:[{\u0022Name\u0022:\u0022path\u0022,\u0022Alias\u0022:\u0022挂载点\u0022,\u0022Value\u0022:\u0022\/iflytek\u0022},{\u0022Name\u0022:\u0022device\u0022,\u0022Alias\u0022:\u0022磁盘\u0022,\u0022Value\u0022:\u0022sdb1\u0022},{\u0022Name\u0022:\u0022ident\u0022,\u0022Alias\u0022:\u0022节点名称\u0022,\u0022Value\u0022:\u0022iflytek239\u0022}]}]},\u0022Stats\u0022:{\u0022MaxValue\u0022:19.9012056677835,\u0022MinValue\u0022:5.592719557101592,\u0022Average\u0022:0,\u0022AlertCount\u0022:0,\u0022CriticalCount\u0022:0,\u0022WarningCount\u0022:0,\u0022TotalCount\u0022:2}}}');
+
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        
+        function getAllMachines() {
+            const allMachines = new Set();
+            
+            for (const [type, group] of Object.entries(data)) {
+                if (group.MetricsByName) {
+                    for (const [metricName, metrics] of Object.entries(group.MetricsByName)) {
+                        for (const metric of metrics) {
+                            
+                            const identLabel = metric.Labels.find(label => label.Name === "ident");
+                            if (identLabel && identLabel.Value) {
+                                allMachines.add(identLabel.Value);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            
+            return Array.from(allMachines).sort((a, b) => {
+                if (a.match(/^\d+\.\d+\.\d+\.\d+$/) && b.match(/^\d+\.\d+\.\d+\.\d+$/)) {
+                    
+                    const ipA = a.split('.').map(num => parseInt(num, 10));
+                    const ipB = b.split('.').map(num => parseInt(num, 10));
+                    
+                    for (let i = 0; i < 4; i++) {
+                        if (ipA[i] !== ipB[i]) {
+                            return ipA[i] - ipB[i];
+                        }
+                    }
+                    return 0;
+                } else {
+                    
+                    return a.localeCompare(b);
+                }
+            });
+        }
+        
+        
+        function getMachineUptime(machineIdent) {
+            let uptime = null;
+            
+            
+            for (const [type, group] of Object.entries(data)) {
+                if (group.MetricsByName && group.MetricsByName['系统运行时间']) {
+                    for (const metric of group.MetricsByName['系统运行时间']) {
+                        const identLabel = metric.Labels.find(label => label.Name === "ident");
+                        if (identLabel && identLabel.Value === machineIdent) {
+                            uptime = metric.Value;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            return uptime;
+        }
+        
+        
+        function getMachineStatus(machineIdent) {
+            let cpuUsage = null;
+            let memUsage = null;
+            let diskUsage = null;
+            
+            
+            for (const [type, group] of Object.entries(data)) {
+                if (group.MetricsByName && group.MetricsByName['CPU使用率']) {
+                    for (const metric of group.MetricsByName['CPU使用率']) {
+                        const identLabel = metric.Labels.find(label => label.Name === "ident");
+                        if (identLabel && identLabel.Value === machineIdent) {
+                            cpuUsage = metric.Value;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            
+            for (const [type, group] of Object.entries(data)) {
+                if (group.MetricsByName && group.MetricsByName['内存使用率']) {
+                    for (const metric of group.MetricsByName['内存使用率']) {
+                        const identLabel = metric.Labels.find(label => label.Name === "ident");
+                        if (identLabel && identLabel.Value === machineIdent) {
+                            memUsage = metric.Value;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            
+            for (const [type, group] of Object.entries(data)) {
+                if (group.MetricsByName && group.MetricsByName['磁盘使用率']) {
+                    for (const metric of group.MetricsByName['磁盘使用率']) {
+                        const identLabel = metric.Labels.find(label => label.Name === "ident");
+                        const pathLabel = metric.Labels.find(label => (label.Name === "path" || label.Name === "mountpoint") && (label.Value === "/" || label.Value === "rootfs"));
+                        if (identLabel && identLabel.Value === machineIdent && pathLabel) {
+                            diskUsage = metric.Value;
+                            break;
+                        }
+                    }
+                }
+                
+                
+                if (diskUsage === null && group.MetricsByName && group.MetricsByName['根分区磁盘使用率']) {
+                    for (const metric of group.MetricsByName['根分区磁盘使用率']) {
+                        const identLabel = metric.Labels.find(label => label.Name === "ident");
+                        if (identLabel && identLabel.Value === machineIdent) {
+                            diskUsage = metric.Value;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            
+            if (cpuUsage === null && memUsage === null && diskUsage === null) {
+                return 'offline';
+            }
+            
+            
+            if ((cpuUsage !== null && cpuUsage > 90) || 
+                (memUsage !== null && memUsage > 90) ||
+                (diskUsage !== null && diskUsage > 90)) {
+                return 'critical';
+            }
+            
+            
+            if ((cpuUsage !== null && cpuUsage > 80) ||
+                (memUsage !== null && memUsage > 80) ||
+                (diskUsage !== null && diskUsage > 80)) {
+                return 'warning';
+            }
+            
+            return 'normal';
+        }
+        
+        
+        function formatUptime(seconds) {
+            if (seconds === null) return "未知";
+            
+            const days = Math.floor(seconds / 86400);
+            const hours = Math.floor((seconds % 86400) / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            
+            let result = "";
+            if (days > 0) result += `${days}天`;
+            if (hours > 0 || days > 0) result += `${hours}小时`;
+            result += `${minutes}分钟`;
+            
+            return result;
+        }
+        
+        
+        function renderMachineGrid() {
+            const gridContainer = document.getElementById('machineGrid');
+            if (!gridContainer) return;
+            
+            const machines = getAllMachines();
+            let machineCount = 0;
+            
+            for (const machine of machines) {
+                machineCount++;
+                const status = getMachineStatus(machine);
+                const isOnline = status !== 'offline';
+                const uptime = getMachineUptime(machine);
+                
+                const cell = document.createElement('div');
+                cell.className = `machine-cell ${status}`;
+                
+                
+                cell.textContent = '';
+                
+                
+                let cpuUsage = null;
+                let memUsage = null;
+                let diskUsage = null;
+                
+                for (const [type, group] of Object.entries(data)) {
+                    if (group.MetricsByName) {
+                        if (group.MetricsByName['CPU使用率']) {
+                            for (const metric of group.MetricsByName['CPU使用率']) {
+                                const identLabel = metric.Labels.find(label => label.Name === "ident");
+                                if (identLabel && identLabel.Value === machine) {
+                                    cpuUsage = metric.Value;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (group.MetricsByName['内存使用率']) {
+                            for (const metric of group.MetricsByName['内存使用率']) {
+                                const identLabel = metric.Labels.find(label => label.Name === "ident");
+                                if (identLabel && identLabel.Value === machine) {
+                                    memUsage = metric.Value;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (group.MetricsByName['磁盘使用率']) {
+                            for (const metric of group.MetricsByName['磁盘使用率']) {
+                                const identLabel = metric.Labels.find(label => label.Name === "ident");
+                                const pathLabel = metric.Labels.find(label => (label.Name === "path" || label.Name === "mountpoint") && (label.Value === "/" || label.Value === "rootfs"));
+                                if (identLabel && identLabel.Value === machine && pathLabel) {
+                                    diskUsage = metric.Value;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        
+                        if (diskUsage === null && group.MetricsByName && group.MetricsByName['根分区磁盘使用率']) {
+                            for (const metric of group.MetricsByName['根分区磁盘使用率']) {
+                                const identLabel = metric.Labels.find(label => label.Name === "ident");
+                                if (identLabel && identLabel.Value === machine) {
+                                    diskUsage = metric.Value;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                
+                const tooltip = document.createElement('div');
+                tooltip.className = 'tooltip';
+                tooltip.innerHTML = `
+                    <div class="tooltip-row">
+                        <span class="tooltip-label">主机:</span>
+                        <span class="tooltip-value">${machine}</span>
+                    </div>
+                    <div class="tooltip-row">
+                        <span class="tooltip-label">运行时间:</span>
+                        <span class="tooltip-value">${uptime !== null ? formatUptime(uptime) : '未知'}</span>
+                    </div>
+                    <div class="tooltip-row">
+                        <span class="tooltip-label">CPU:</span>
+                        <span class="tooltip-value">${cpuUsage !== null ? cpuUsage.toFixed(2) + '%' : '未知'}</span>
+                    </div>
+                    <div class="tooltip-row">
+                        <span class="tooltip-label">内存:</span>
+                        <span class="tooltip-value">${memUsage !== null ? memUsage.toFixed(2) + '%' : '未知'}</span>
+                    </div>
+                    <div class="tooltip-row">
+                        <span class="tooltip-label">根分区:</span>
+                        <span class="tooltip-value">${diskUsage !== null ? diskUsage.toFixed(2) + '%' : '未知'}</span>
+                    </div>
+                    <div class="tooltip-row">
+                        <span class="tooltip-label">状态:</span>
+                        <span class="tooltip-value inline-status">${status === 'normal' ? '正常' : 
+                              status === 'warning' ? '警告' : 
+                              status === 'critical' ? '严重' : '离线'}</span>
+                    </div>
+                `;
+                
+                cell.appendChild(tooltip);
+                gridContainer.appendChild(cell);
+            }
+            
+            
+            const totalInfo = document.createElement('div');
+            totalInfo.className = 'machine-count';
+            totalInfo.textContent = `总计: ${machineCount}台`;
+            gridContainer.appendChild(totalInfo);
+            
+            
+            const legendContainer = document.createElement('div');
+            legendContainer.className = 'machine-status-legend';
+            
+            
+            const statuses = [
+                { class: 'normal', text: '正常' },
+                { class: 'warning', text: '警告 (CPU/内存/根分区 > 80%)' },
+                { class: 'critical', text: '严重 (CPU/内存/根分区 > 90%)' },
+                { class: 'offline', text: '离线' }
+            ];
+            
+            statuses.forEach(status => {
+                const item = document.createElement('div');
+                item.className = 'legend-item';
+                
+                const color = document.createElement('div');
+                color.className = `legend-color ${status.class}`;
+                
+                const text = document.createElement('div');
+                text.textContent = status.text;
+                
+                item.appendChild(color);
+                item.appendChild(text);
+                legendContainer.appendChild(item);
+            });
+            
+            
+            const section = gridContainer.parentNode;
+            section.insertBefore(legendContainer, gridContainer.nextSibling);
+        }
+        
+        
+        renderMachineGrid();
+    });
+</script>
+
+<script>
+    
+    
+    function groupPodsByNamespace(podMetrics) {
+        console.log("此函数已被Go模板函数替代");
+        return {};
+    }
+    
+    function getPodName(labels) {
+        console.log("此函数已被Go模板函数替代");
+        return "";
+    }
+    
+    function getPodStatusClass(status) {
+        console.log("此函数已被Go模板函数替代");
+        return "";
+    }
+</script>
+</body>
+</html>

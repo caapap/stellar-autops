@@ -1,18 +1,25 @@
-prometheus_url: "http://172.31.101.239:48877/"
-# 定义全局变量，下面会用到大模型机器ip，k8s集群ip，星云大数据主节点ip，skynet托管平台ip
-skynet_ip: "172.31.101.239"
-k8s_ip: "172.31.101.239"
-ddp_ip: "172.31.101.239"
-llm_ip: "172.31.101.239"
+# 星相运维平台prometheus地址即prometheus-stellar,默认为 "http://stellar-prometheus.kxdigit-monitoring.svc.cluster.local:9090"
+prometheus_url: "http://172.31.101.239:46627/"
+# skynet托管平台prometheus地址，需填写ip+端口
+prometheus-skynet: "172.31.101.239"
+prometheus-k8s: "172.31.101.239"  # k8s的prometheus监控地址，容器化部署时无需填写， 默认为"http://prometheus-k8s.kubesphere-monitoring-system:9090"
+# 星云大数据prometheus地址，需填写ip+端口
+prometheus-ddp: "172.31.101.239"
 
+# Harbor仓库配置
+harbor:
+  enabled: true
+  url: "https://172.30.137.161"  # 默认复用k8s主节点IP地址
+  username: "root"
+  password: "Harbor12345"
+  insecure: true  # 是否忽略证书验证
 
-
-project_name: "星相运维平台测试项目巡检报告"
+project_name: "星相运维平台巡检报告"
 
 
 # 定时任务：每天9点半和17半执行
 
-cron_schedule: "51 20,17 * * *"
+cron_schedule: "15 16,17 * * *"
 
 
 # 报告清理
@@ -22,50 +29,12 @@ report_cleanup:
   max_age: 7    # 保留最近7天的报告
   cron_schedule: "0 0 * * *"  # 如果为空，则执行执行上面定时任务，即生成报告时清理
 
-# 配置发送钉钉和邮件
-
-notifications:
-  dingtalk:
-    enabled: true
-    webhook: "https://oapi.dingtalk.com/robot/send?access_token=xxxxxxxxxxxxxxxxxxxxxxxxxxxx"  # 这里填写自己的webhook
-    secret: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"  # 这里填写的是加钉钉机器人加签的secret
-    report_url: "http://192.168.5.125:41174"  # 这里可以填写ip+端口，也可以填写域名,如果是k8s里部署，推荐采用域名的方式，如果不行可以将 svc 以nodeport方式暴露出来，这里就可以使用ip+端口方式
-  email:
-    enabled: true
-    smtp_host: "smtp.exmail.qq.com"  # 我这里用的是腾讯企业邮箱，需要改成自己的
-    smtp_port: 465
-    username: "demo@demo.cn"  # 填写自己的邮箱账号
-    password: "xxxxxxxxxxxxxxxxxxxx"  # 这里填写的是授权码
-    from: "demo@demo.cn"
-    to:
-      - "demo@demo.cn"
-    report_url: "https://promai.lichengjun.top"  # 这里可以填写ip+端口，也可以填写域名，如果是k8s里部署，推荐采用域名的方式，如果不行可以将 svc 以nodeport方式暴露出来，这里就可以使用ip+端口方式,如果是部署在k8s里，ingress 的需要自己去编写
-
 metric_types:
-  - type: "基础资源使用情况"
+  - type: "自定义指标项组"
     metrics:
-      - name: "CPU使用率"
-        description: "节点CPU使用率统计"
-        #query: "100 - (avg by(instance) (irate(node_cpu_seconds_total{mode='idle'}[5m])) * 100)"
-        query: "avg by(ident) (cpu_usage_active)"
-        threshold: 80
-        threshold_type: "greater"
-        unit: "%"
-        labels:
-          ident: "节点名称"
-
-      - name: "内存使用率"
-        description: "节点内存使用率统计"
-        query: "avg by(ident) (mem_used_percent)"
-        threshold: 85
-        threshold_type: "greater"
-        unit: "%"
-        labels:
-          ident: "节点名称"
-
-      - name: "根分区磁盘使用率"
-        description: "根分区磁盘使用率统计"
-        query: "avg by(ident) (disk_used_percent{path=~'/'})"
+      - name: "/iflytek/data分区磁盘使用率"
+        description: "/iflytek/data分区磁盘使用率统计"
+        query: "avg by(ident, path, device) (disk_used_percent{path=~'/iflytek/data'})"
         threshold: 80
         threshold_type: "greater"
         unit: "%"
@@ -74,75 +43,4 @@ metric_types:
           path: "挂载点"
           device: "磁盘"
 
-      - name: "/iflytek分区磁盘使用率"
-        description: "/iflytek分区磁盘使用率统计"
-        query: "avg by(ident) (disk_used_percent{path=~'/iflytek'})"
-        threshold: 80
-        threshold_type: "greater"
-        unit: "%"
-        labels:
-          ident: "节点名称"
-          path: "挂载点"
-          device: "磁盘"
-
-      - name: "大模型机器内存使用率"
-        description: "大模型机器内存使用率统计"
-        query: "avg by(ident) (mem_used_percent{ident=~'$llm_ip'})"
-        threshold: 16.84
-        threshold_type: "greater"
-        unit: "%"
-        labels:
-          ident: "节点名称"
-
-
-  # - type: "PaaS平台巡检"
-  #   metrics:
-  #     - name: "K8s集群关键服务"
-  #       description: "K8s集群关键服务状态统计"
-  #       query: "key_pod_status"
-  #       threshold: 1
-  #       threshold_type: "equal"
-  #       unit: ""
-  #       labels:
-  #         component: "服务名称"
-  #         namespace: "命名空间"
-  #         # describe: "服务描述"
-  #         hostname: "主机名称"
-  #         owner: "负责人"
-  #         instance: "节点"
-
-
-
-      - name: "Pod运行状态"
-        description: "集群Pod运行状态统计"
-        query: "sum by (namespace, pod) (kube_pod_status_phase{phase='Running',namespace='kube-system'})"
-        prometheus_url: "http://172.31.101.239:13324/"
-        threshold: 1
-        threshold_type: "equal"
-        unit: ""
-        labels:
-          namespace: "命名空间"
-          pod: "Pod名称"
-
-      - name: "节点就绪状态"
-        description: "K8s节点就绪状态检查"
-        query: "kube_node_status_condition{condition='Ready',status!='true'}"
-        prometheus_url: "http://172.31.101.239:13324/"
-        threshold: 0
-        threshold_type: "equal"
-        unit: ""
-        labels:
-          node: "节点"
-          condition: "状态类型"
-
-      - name: "PVC使用率"
-        description: "持久化存储使用率"
-        query: >-
-          100 * (1 - kubelet_volume_stats_available_bytes / kubelet_volume_stats_capacity_bytes)
-        prometheus_url: "http://172.31.101.239:13324/"
-        threshold: 90
-        threshold_type: "greater"
-        unit: "%"
-        labels:
-          namespace: "命名空间"
-          persistentvolumeclaim: "PVC名称"
+      # Pod运行状态已移至代码中硬编码实现，此处配置已移除

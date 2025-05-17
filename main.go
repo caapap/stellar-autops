@@ -162,7 +162,7 @@ func setupRoutes(collector *metrics.Collector, config *config.Config) {
 	http.Handle("/reports/", http.StripPrefix("/reports/", http.FileServer(http.Dir("reports"))))
 
 	// 设置状态页面路由
-	http.HandleFunc("/status", makeStatusHandler(collector.Client, config))
+	http.HandleFunc("/status", makeStatusHandler(collector, config))
 
 }
 
@@ -188,9 +188,9 @@ func makeReportHandler(collector *metrics.Collector) http.HandlerFunc {
 }
 
 // makeStatusHandler 创建状态页面处理器
-func makeStatusHandler(client metrics.PrometheusAPI, config *config.Config) http.HandlerFunc {
+func makeStatusHandler(collector *metrics.Collector, config *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		data, err := status.CollectMetricStatus(client, config)
+		data, err := status.CollectMetricStatus(collector.Client, config)
 		if err != nil {
 			http.Error(w, "Failed to collect status data", http.StatusInternalServerError)
 			log.Printf("Error collecting status data: %v", err)
